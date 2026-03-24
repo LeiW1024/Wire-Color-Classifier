@@ -351,6 +351,8 @@ git checkout develop && git pull origin develop
 
 ## Rules
 
+**All rules are mandatory. Every rule in the `rules/` directory must be followed at every stage of development — writing code, testing, committing, reviewing, and deploying. When in doubt, consult the relevant rule file before proceeding. No exceptions.**
+
 See the `rules/` directory for full detail:
 - `coding-standards.md` — Code style, naming, PR requirements, branch strategy
 - `tdd-workflow.md` — TDD cycle, test tables, coverage requirements, fixtures
