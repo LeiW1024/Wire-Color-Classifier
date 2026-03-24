@@ -18,5 +18,8 @@ out/
 # Data
 data/augmented/
 
+# Model weights
+backend/models/*.pth
+
 # OS
 .DS_Store

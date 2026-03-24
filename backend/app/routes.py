@@ -4,11 +4,8 @@ import cv2
 import numpy as np
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from app.color_discovery import discover_colors
-from app.config import DEFAULT_K_CLUSTERS
 from app.models import AnalyzeResponse, ColorRangeResponse, ColorsResponse
-from app.pipeline import analyze_image, get_color_ranges, set_color_ranges
-from app.preprocessing import preprocess_image
+from app.sam_pipeline import analyze_image_sam
 
 router = APIRouter(prefix="/api")
 
@@ -35,32 +32,19 @@ async def _read_image(file: UploadFile) -> np.ndarray:
 
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(file: UploadFile = File(...)):
-    """Upload an image and get wire color detection results."""
+    """Upload an image and get wire color detection results using SAM."""
     image = await _read_image(file)
-    result = analyze_image(image)
+    result = analyze_image_sam(image)
     return AnalyzeResponse(**result)
-
-
-@router.post("/calibrate")
-async def calibrate(file: UploadFile = File(...)):
-    """Upload a reference image to discover and set color ranges."""
-    image = await _read_image(file)
-    hsv = preprocess_image(image)
-    ranges = discover_colors(hsv, k=DEFAULT_K_CLUSTERS)
-    set_color_ranges(ranges)
-    return {
-        "message": f"Discovered {len(ranges)} colors",
-        "colors": [r.name for r in ranges],
-    }
 
 
 @router.get("/colors", response_model=ColorsResponse)
 async def get_colors():
-    """Return current color definitions and HSV ranges."""
-    ranges = get_color_ranges()
-    return ColorsResponse(
-        colors=[
-            ColorRangeResponse(name=r.name, lower=r.lower, upper=r.upper)
-            for r in ranges
-        ]
-    )
+    """Return supported color definitions."""
+    from app.sam_pipeline import COLOR_RANGES
+    colors = [
+        ColorRangeResponse(name=name, lower=lower, upper=upper)
+        for name, (lower, upper) in COLOR_RANGES.items()
+        if name != "red_high"
+    ]
+    return ColorsResponse(colors=colors)
