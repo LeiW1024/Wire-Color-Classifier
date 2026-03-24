@@ -1,101 +1,127 @@
-import Image from "next/image";
+'use client'
+
+import { useState, useCallback } from 'react'
+import { ImageUpload } from '@/components/ImageUpload'
+import { ResultsView } from '@/components/ResultsView'
+import { analyzeImage } from '@/lib/api'
+import type { AnalyzeResponse } from '@/lib/types'
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [result, setResult] = useState<AnalyzeResponse | null>(null)
+  const [originalImage, setOriginalImage] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleFileSelected = useCallback(async (file: File) => {
+    setIsLoading(true)
+    setError(null)
+    setResult(null)
+
+    // Create a local URL for the original image preview
+    const objUrl = URL.createObjectURL(file)
+    setOriginalImage(objUrl)
+
+    try {
+      const response = await analyzeImage(file)
+      setResult(response)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Analysis failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  return (
+    <div style={{ position: 'relative', minHeight: '100vh', zIndex: 1 }}>
+      {/* Header */}
+      <header style={{
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--bg-surface)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+      }}>
+        <div style={{
+          maxWidth: 1100,
+          margin: '0 auto',
+          padding: '0 24px',
+          height: 52,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: isLoading ? '#f59e0b' : result ? 'var(--accent-cyan)' : '#2e3440',
+              boxShadow: isLoading ? '0 0 8px #f59e0b' : result ? '0 0 8px rgba(0,212,255,0.6)' : 'none',
+              transition: 'all 0.3s ease',
+            }} />
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 20,
+              color: 'var(--text-secondary)',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+            }}>
+              Wire Color Classifier
+            </span>
+          </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+            SAM · v2.0
+          </span>
         </div>
+      </header>
+
+      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px', display: 'flex', flexDirection: 'column', gap: 32 }}>
+        {/* Title */}
+        <div style={{ borderLeft: '2px solid var(--accent-cyan)', paddingLeft: 20 }}>
+          <h1 style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'clamp(26px, 3vw, 36px)',
+            fontWeight: 400,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.2,
+          }}>
+            Industrial Wire<br />
+            <span style={{ color: 'var(--accent-cyan)' }}>Color Analysis</span>
+          </h1>
+          <p style={{
+            fontSize: 20,
+            color: 'var(--text-muted)',
+            marginTop: 8,
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.04em',
+          }}>
+            SAM segmentation → HSV color classification
+          </p>
+        </div>
+
+        {/* Upload */}
+        <ImageUpload onFileSelected={handleFileSelected} isLoading={isLoading} />
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            background: 'rgba(255,59,92,0.08)',
+            border: '1px solid rgba(255,59,92,0.3)',
+            borderRadius: 4,
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--accent-red)', letterSpacing: '0.1em' }}>ERR</span>
+            <span style={{ fontSize: 20, color: '#ff8fa3' }}>{error}</span>
+          </div>
+        )}
+
+        {/* Results */}
+        {result && originalImage && (
+          <ResultsView result={result} originalImageUrl={originalImage} />
+        )}
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
-  );
+  )
 }

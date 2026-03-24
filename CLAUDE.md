@@ -6,7 +6,7 @@ Build a web application that identifies and classifies thin, tangled wires of di
 
 ## Project Overview
 
-An industry partner provides images of tangled wires with 6-15 distinct colors. The system must automatically detect each wire's color, count them, and visually highlight them with bounding boxes. This is a computer vision challenge — not a simple color picker — because wires are thin, overlapping, and photographed in uncontrolled lighting conditions.
+An industry partner provides images of tangled wires with 6-15 distinct colors. The system automatically detects each wire's color, counts them, and visually highlights them using SAM (Segment Anything Model) segmentation + HSV color classification. No training data or annotations required.
 
 ## The Challenge
 
@@ -21,44 +21,40 @@ An industry partner provides images of tangled wires with 6-15 distinct colors. 
 
 1. **Image upload** — Upload a wire image via web UI
 2. **Color detection** — Identify which wire colors exist in the image
-3. **Wire counting** — Count how many wires of each color are present
-4. **Visual annotation** — Draw bounding boxes/labels on each wire in its actual color
-5. **Color discovery** — Auto-discover color categories from images using K-means clustering
-6. **Calibration** — Allow manual tuning of color detection thresholds
+3. **Wire counting** — Count how many wire segments of each color are present
+4. **Visual annotation** — Highlight each wire segment with colored contour + semi-transparent fill
+5. **Image comparison** — Toggle between original and annotated image in the UI
+6. **Metrics dashboard** — Wire count, colors found, avg confidence, wire coverage %, process time
 
-## Approach
+## Approach: SAM + HSV Classification (Zero-Shot)
 
-### Phase 1: Classical Computer Vision (Current Scope)
+Use Meta's **Segment Anything Model (SAM vit_b)** for zero-shot segmentation, followed by HSV color space classification. No training data or annotations needed — SAM was pre-trained by Meta on millions of images.
 
-Use OpenCV with HSV color space segmentation. No ML training required — works with the 2 available images immediately.
-
-### Phase 2: Hybrid ML (Future — Only If Needed)
-
-If Phase 1 accuracy is insufficient, add a lightweight ML classifier (small CNN or YOLOv8-nano) for ambiguous colors. Requires more annotated data. Decision made with industry partner.
+**Why SAM:** Classical HSV + contour detection failed on real wire images — background textures were classified as wire colors and thin tangled wires produced fragmented, incorrect contours. SAM correctly segments individual wire objects regardless of shape complexity.
 
 ## Architecture
 
 ```
-┌─────────────────────────┐         ┌──────────────────────────────┐
-│    Next.js / React       │  HTTP   │    Python Backend (FastAPI)   │
-│    Frontend              │ ──────→ │                              │
-│                          │ ←────── │    - OpenCV processing       │
-│  - Image upload          │         │    - HSV color segmentation  │
-│  - Annotated image view  │         │    - Contour detection       │
-│  - Color list & counts   │         │    - Bounding box generation │
-│  - Bounding box overlay  │         │    - Data augmentation       │
-└─────────────────────────┘         └──────────────────────────────┘
+┌──────────────────────────┐         ┌──────────────────────────────────────┐
+│   Next.js / React         │  HTTP   │   Python Backend (FastAPI)            │
+│   Frontend                │ ──────→ │                                      │
+│                           │ ←────── │   1. Resize image (max 800px)        │
+│  - Image upload           │         │   2. SAM generates all segments      │
+│  - Original / detected    │         │   3. Filter wire-like shapes         │
+│    image comparison tabs  │         │   4. HSV classify each segment color │
+│  - Color distribution     │         │   5. Draw contours + color overlay   │
+│  - Metrics dashboard      │         │   6. Return JSON + base64 image      │
+└──────────────────────────┘         └──────────────────────────────────────┘
 ```
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js / React |
+| Frontend | Next.js 14 / React |
 | Backend API | Python / FastAPI |
-| Computer Vision | OpenCV |
-| Color Space | HSV segmentation |
-| Data Augmentation | OpenCV / Albumentations |
+| Segmentation | SAM (Segment Anything Model, vit_b) — Meta AI |
+| Color Classification | OpenCV HSV color space |
 | Communication | REST API (JSON + base64 images) |
 | Containerization | Docker + Docker Compose (deployment & CI only) |
 | Version Control | Git + GitHub |
@@ -70,11 +66,42 @@ If Phase 1 accuracy is insufficient, add a lightweight ML classifier (small CNN 
 
 ## Processing Pipeline
 
-1. **Preprocessing** — Resize, Gaussian blur, BGR → HSV conversion
-2. **Color Segmentation** — HSV range masks per color, morphological cleanup
-3. **Contour Detection** — Find contours, filter by area, generate bounding boxes
-4. **Results Assembly** — Count per color, annotated image, JSON response
-5. **Color Discovery** — K-means clustering to auto-discover wire colors
+1. **Resize** — Scale image to max 800px on longest side (speed optimization)
+2. **SAM Segmentation** — Generate all object masks (points_per_side=8, ~10s on CPU)
+3. **Wire Filter** — Keep segments with aspect ratio ≥ 2.5, area < 8% of image (removes background)
+4. **Color Classification** — HSV range matching per segment, require 15% pixel dominance
+5. **Annotation** — Draw contour outlines + 35% opacity color fill on each wire segment
+6. **Metrics** — Avg SAM confidence (predicted IoU), wire coverage %, processing time
+
+## SAM Model
+
+- Model: `vit_b` (ViT-Base, ~357MB)
+- File: `backend/models/sam_vit_b.pth` (excluded from git — download separately)
+- Download: `https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth`
+- Loaded once as singleton; stays in memory between requests
+
+## API Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/analyze` | Upload image → colors, counts, annotated image, metrics |
+| GET | `/api/colors` | Return supported HSV color definitions |
+
+## Response Schema (`/api/analyze`)
+
+```json
+{
+  "colors_found": ["red", "blue", "green"],
+  "wire_counts": {"red": 3, "blue": 5, "green": 2},
+  "total_wires": 10,
+  "bounding_boxes": [{"color": "red", "x": 10, "y": 20, "w": 80, "h": 6}],
+  "annotated_image": "<base64 PNG>",
+  "processing_time_ms": 9800,
+  "segments_analyzed": 64,
+  "avg_confidence": 87.5,
+  "wire_coverage_pct": 12.3
+}
+```
 
 ## Development vs Deployment
 
@@ -82,8 +109,17 @@ If Phase 1 accuracy is insufficient, add a lightweight ML classifier (small CNN 
 |-------------|------------|-----|
 | Development | Bare metal — `uvicorn` + `next dev` | Fast iteration |
 | CI/CD | Docker Compose | Reproducible |
-| Sharing | Docker Compose | One command: `docker compose up` |
 | Production | Docker Compose | Same image that passed CI |
+
+## Running Locally
+
+```bash
+# Backend (from backend/)
+python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# Frontend (from frontend/)
+npm run dev
+```
 
 ## Project Structure
 
@@ -91,30 +127,30 @@ If Phase 1 accuracy is insufficient, add a lightweight ML classifier (small CNN 
 wire-color-classifier/
 ├── .github/workflows/            # CI/CD pipelines
 ├── frontend/                     # Next.js app
-│   ├── src/app/                 # Pages
-│   ├── src/components/          # UI components
-│   ├── src/lib/                 # API client
-│   ├── __tests__/               # Jest tests
-│   ├── e2e/                     # Playwright E2E
+│   ├── src/app/                 # Pages + global styles
+│   ├── src/components/          # ImageUpload, ResultsView, ColorTable
+│   ├── src/lib/                 # API client, TypeScript types
+│   ├── __tests__/               # Jest unit tests
+│   ├── e2e/                     # Playwright E2E tests
 │   └── Dockerfile
-├── backend/                     # Python API
-│   ├── app/                     # Application code
-│   ├── tests/                   # pytest (unit, integration, accuracy)
+├── backend/                     # Python FastAPI
+│   ├── app/
+│   │   ├── sam_pipeline.py      # Core: SAM segmentation + HSV classification
+│   │   ├── routes.py            # API endpoints
+│   │   ├── models.py            # Pydantic response schemas
+│   │   └── main.py              # FastAPI app + SAM startup preload
+│   ├── models/                  # SAM weights (not in git)
+│   ├── tests/
+│   │   ├── unit/                # _classify_color, _is_wire_like
+│   │   ├── integration/         # API endpoints, SAM pipeline
+│   │   └── accuracy/            # Regression gate (≥80% on synthetic image)
 │   └── Dockerfile
-├── data/                        # Images (raw, augmented, ground truth)
-├── rules/                       # Coding standards & workflow docs
+├── data/                        # Wire images (raw, ground truth)
+├── rules/                       # Coding standards, TDD workflow, CI/CD docs
 ├── docs/superpowers/specs/      # Design spec
 ├── docker-compose.yml
 └── CLAUDE.md                    # This file
 ```
-
-## API Endpoints
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| POST | `/api/analyze` | Upload image → get colors, counts, bounding boxes |
-| POST | `/api/calibrate` | Upload reference images to discover/tune color ranges |
-| GET | `/api/colors` | Return current color definitions and HSV ranges |
 
 ## Rules
 
