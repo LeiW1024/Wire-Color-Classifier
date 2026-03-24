@@ -15,34 +15,38 @@
 - Type hints on all function signatures
 - Docstrings on public functions (Google style)
 - Max line length: 88 characters (Ruff default)
+- `from __future__ import annotations` at top of every Python file
 
 ### Naming
 
 ```python
 # Functions and variables: snake_case
-def detect_wire_colors(image: np.ndarray) -> list[str]:
-    color_count = 0
-
-# Classes: PascalCase
-class ColorSegmenter:
+def analyze_image_sam(image: np.ndarray) -> dict[str, Any]:
+    wire_counts: dict[str, int] = {}
 
 # Constants: UPPER_SNAKE_CASE
-MIN_CONTOUR_AREA = 100
-DEFAULT_HSV_RANGES = {...}
+COLOR_RANGES = {...}
+DRAW_COLORS = {...}
+
+# Private helpers: leading underscore
+def _classify_color(hsv_region: np.ndarray) -> Optional[str]: ...
+def _is_wire_like(mask: dict, image_area: int) -> bool: ...
+def _load_sam() -> SamAutomaticMaskGenerator: ...
 ```
 
 ### Project Conventions
 
-- Use Pydantic models for API request/response schemas
-- Use FastAPI dependency injection for shared resources
-- Keep CV processing in dedicated modules — not in route handlers
-- Configuration via environment variables or config file, not hardcoded
+- Use Pydantic models for all API request/response schemas (`models.py`)
+- Keep CV/ML processing in `sam_pipeline.py` — not in route handlers
+- SAM model loaded as a module-level singleton — never reload per request
+- All new metric fields have defaults in Pydantic models for backward compatibility
 
 ### Error Handling
 
-- Use FastAPI HTTPException for API errors
-- Log errors with context (image name, processing step)
-- Never silently swallow exceptions in the CV pipeline
+- Use FastAPI `HTTPException` for API errors (400 for bad input, 500 for pipeline errors)
+- Log errors with context (image dimensions, processing step)
+- Never silently swallow exceptions in the pipeline
+- SAM model load failures are logged as warnings; server still starts
 
 ## TypeScript/React (Frontend)
 
@@ -51,29 +55,32 @@ DEFAULT_HSV_RANGES = {...}
 - Linter: **ESLint** with Next.js recommended config
 - Strict TypeScript — no `any` types
 - Functional components only
-- Named exports (no default exports)
+- Named exports (no default exports from components)
 
 ### Naming
 
 ```typescript
 // Components: PascalCase
 export function ImageUpload() {}
+export function ResultsView() {}
 export function ColorTable() {}
 
 // Functions/variables: camelCase
-const wireCount = getWireCount(results)
+const processingSeconds = (result.processing_time_ms / 1000).toFixed(1)
 
 // Types/interfaces: PascalCase
 interface AnalyzeResponse {}
-type WireColor = string
+interface ResultsViewProps {}
 ```
 
 ### Project Conventions
 
-- API calls go in `src/lib/` — not inside components
+- API calls go in `src/lib/api.ts` — never inside components
+- Types/interfaces go in `src/lib/types.ts`
 - Components receive data via props — minimal internal state
-- Use TypeScript interfaces for all API response shapes
+- All API response shapes typed via `AnalyzeResponse` interface
 - Handle loading and error states for every API call
+- Use 2-minute AbortController timeout for SAM inference requests
 
 ## Git & PR Requirements
 
@@ -93,15 +100,16 @@ ci/<name>          — CI/CD changes
 <type>(<scope>): <description>
 
 Types: feat, fix, test, refactor, docs, chore, ci
-Scopes: backend, frontend, pipeline, api, augmentation
+Scopes: backend, frontend, pipeline, api, ui
 ```
 
 Examples:
 ```
-feat(backend): add HSV color segmentation module
-test(backend): add unit tests for contour detection
-fix(pipeline): handle zero-contour edge case
-ci: add backend test workflow
+feat(backend): add SAM segmentation pipeline
+feat(frontend): add image comparison tabs and metrics dashboard
+fix(pipeline): reject background segments larger than 8% of image
+test(backend): update accuracy tests to use analyze_image_sam
+docs: rewrite CLAUDE.md for SAM-only approach
 ```
 
 ### Pull Request Rules
@@ -132,7 +140,14 @@ main                        ← production-ready, protected
 
 ## File Organization
 
-- Keep files focused and small — if a file grows beyond ~200 lines, consider splitting
+- Keep files focused and small — if a file grows beyond ~300 lines, consider splitting
 - Group by feature/domain, not by file type
 - Test files mirror source file structure
-- No business logic in route handlers — delegate to service modules
+- No business logic in route handlers — delegate to `sam_pipeline.py`
+
+## SAM Model
+
+- Model weights (`sam_vit_b.pth`) are **excluded from git** (`.gitignore`)
+- Download separately: `https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth`
+- Place at `backend/models/sam_vit_b.pth`
+- Tests that require the model use `@pytest.mark.skipif(not _sam_model_available(), ...)`

@@ -79,10 +79,11 @@ def _load_sam():
 
     _mask_generator = SamAutomaticMaskGenerator(
         model=_sam_model,
-        points_per_side=32,
-        pred_iou_thresh=0.86,
-        stability_score_thresh=0.92,
-        min_mask_region_area=500,
+        points_per_side=8,            # 64 points total — fast on CPU
+        pred_iou_thresh=0.75,
+        stability_score_thresh=0.80,
+        min_mask_region_area=200,
+        points_per_batch=16,
     )
     return _mask_generator
 
@@ -127,21 +128,30 @@ def _classify_color(hsv_region: np.ndarray) -> Optional[str]:
     return best_color
 
 
-def _is_wire_like(mask: dict, min_aspect_ratio: float = 2.0) -> bool:
-    """Check if a mask segment is elongated (wire-like)."""
+def _is_wire_like(mask: dict, image_area: int, min_aspect_ratio: float = 2.5) -> bool:
+    """Check if a mask segment is elongated (wire-like) and not background."""
     bbox = mask["bbox"]  # x, y, w, h
     w, h = bbox[2], bbox[3]
     if w == 0 or h == 0:
         return False
 
-    aspect = max(w, h) / min(w, h)
     area = mask["area"]
 
-    # Wire-like: elongated shape OR reasonable size
-    # Allow less elongated shapes if area is reasonable (thick wires)
+    # Reject large segments (>8% of image) — these are background, not wires
+    if area > image_area * 0.08:
+        return False
+
+    # Reject tiny noise segments
+    if area < 150:
+        return False
+
+    aspect = max(w, h) / min(w, h)
+
+    # Wire-like: elongated shape
     if aspect >= min_aspect_ratio:
         return True
-    if area > 1000 and aspect >= 1.3:
+    # Shorter but thick wire cross-sections (e.g., wire going into camera)
+    if area > 800 and aspect >= 1.5:
         return True
 
     return False
@@ -149,7 +159,19 @@ def _is_wire_like(mask: dict, min_aspect_ratio: float = 2.0) -> bool:
 
 def analyze_image_sam(image: np.ndarray) -> dict[str, Any]:
     """Run SAM-based wire color detection pipeline."""
+    import time
+    t_start = time.time()
+
     mask_generator = _load_sam()
+
+    # Resize large images to max 800px on longest side for faster SAM inference
+    h, w = image.shape[:2]
+    max_side = 800
+    scale = 1.0
+    if max(h, w) > max_side:
+        scale = max_side / max(h, w)
+        new_w, new_h = int(w * scale), int(h * scale)
+        image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
     # Convert BGR to RGB for SAM
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -160,14 +182,22 @@ def analyze_image_sam(image: np.ndarray) -> dict[str, Any]:
     # Convert to HSV for color classification
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
+    img_h, img_w = image.shape[:2]
+    image_area = img_h * img_w
+
     colors_found: list[str] = []
     wire_counts: dict[str, int] = {}
     all_boxes: list[dict[str, Any]] = []
     annotated = image.copy()
+    overlay = image.copy()
+
+    confidence_scores: list[float] = []
+    total_wire_pixels = 0
+    covered_pixels = np.zeros((img_h, img_w), dtype=bool)
 
     for mask_data in masks:
         # Filter: only wire-like segments
-        if not _is_wire_like(mask_data):
+        if not _is_wire_like(mask_data, image_area):
             continue
 
         # Get the pixels inside this mask
@@ -177,8 +207,12 @@ def analyze_image_sam(image: np.ndarray) -> dict[str, Any]:
         # Classify color
         color = _classify_color(masked_hsv)
         if color is None or color in ("black", "gray", "white"):
-            # Skip background-like colors
             continue
+
+        # Track SAM's predicted IoU as segment confidence
+        confidence_scores.append(float(mask_data.get("predicted_iou", 0.85)))
+        total_wire_pixels += mask_data["area"]
+        covered_pixels |= binary_mask
 
         # Count
         if color not in wire_counts:
@@ -186,34 +220,36 @@ def analyze_image_sam(image: np.ndarray) -> dict[str, Any]:
             colors_found.append(color)
         wire_counts[color] += 1
 
-        # Bounding box
-        x, y, w, h = mask_data["bbox"]
         draw_color = DRAW_COLORS.get(color, (0, 255, 0))
 
-        # Draw on annotated image
-        cv2.rectangle(annotated, (x, y), (x + w, y + h), draw_color, 2)
-        cv2.putText(
-            annotated, color, (x, y - 5),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.6, draw_color, 2,
-        )
+        # Fill the mask area with semi-transparent color overlay
+        overlay[binary_mask] = draw_color
 
-        # Also draw the mask outline for clarity
+        # Draw contour outline (no bounding box)
         contours, _ = cv2.findContours(
             binary_mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
         cv2.drawContours(annotated, contours, -1, draw_color, 2)
 
+        x, y, bw, bh = mask_data["bbox"]
         all_boxes.append({
             "color": color,
             "x": int(x),
             "y": int(y),
-            "w": int(w),
-            "h": int(h),
+            "w": int(bw),
+            "h": int(bh),
         })
+
+    # Blend semi-transparent mask overlay onto annotated image
+    cv2.addWeighted(overlay, 0.35, annotated, 0.65, 0, annotated)
 
     # Encode annotated image
     _, buffer = cv2.imencode(".png", annotated)
     annotated_b64 = base64.b64encode(buffer).decode("utf-8")
+
+    # Compute metrics
+    avg_confidence = round(float(np.mean(confidence_scores)) * 100, 1) if confidence_scores else 0.0
+    wire_coverage_pct = round(float(np.sum(covered_pixels)) / image_area * 100, 1)
 
     return {
         "colors_found": colors_found,
@@ -221,4 +257,8 @@ def analyze_image_sam(image: np.ndarray) -> dict[str, Any]:
         "total_wires": sum(wire_counts.values()),
         "bounding_boxes": all_boxes,
         "annotated_image": annotated_b64,
+        "processing_time_ms": int((time.time() - t_start) * 1000),
+        "segments_analyzed": len(masks),
+        "avg_confidence": avg_confidence,
+        "wire_coverage_pct": wire_coverage_pct,
     }

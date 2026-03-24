@@ -12,6 +12,10 @@ export interface AnalyzeResponse {
   total_wires: number
   bounding_boxes: BoundingBox[]
   annotated_image: string
+  processing_time_ms: number
+  segments_analyzed: number
+  avg_confidence: number
+  wire_coverage_pct: number
 }
 
 export interface ColorRange {
