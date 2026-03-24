@@ -116,12 +116,19 @@ ci: add backend test workflow
 
 ```
 main                        ← production-ready, protected
-├── develop                 ← integration branch
-│   ├── feature/backend-pipeline
-│   ├── feature/frontend-upload
-│   ├── feature/api-endpoints
-│   └── fix/color-threshold
+└── develop                 ← integration branch
+    ├── feature/frontend    ← Next.js / React UI work
+    ├── feature/backend     ← FastAPI / Python API work
+    ├── feature/ai-model    ← SAM segmentation / CV model work
+    └── fix/<name>          ← bug fixes (branch from develop)
 ```
+
+**Flow:** `feature/* → PR → develop → PR → main`
+
+- Feature branches are created from `develop`
+- When work is complete, open a PR from `feature/*` → `develop`
+- Once `develop` is stable and tested, open a PR from `develop` → `main`
+- Never commit directly to `main` or `develop`
 
 ## File Organization
 
