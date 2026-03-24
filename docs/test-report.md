@@ -3,7 +3,7 @@
 **Date:** 2026-03-24
 **Branch:** develop
 **Pipeline:** SAM (Segment Anything Model) + HSV Classification
-**Total Tests:** 19 (9 backend + 10 frontend)
+**Total Tests:** 29 (18 backend + 11 frontend)
 **Status:** ALL PASSING (accuracy tests skipped — SAM model required locally)
 
 ---
@@ -48,7 +48,7 @@
 
 ---
 
-## Frontend Test Results (10/10 PASSED)
+## Frontend Test Results (11/11 PASSED)
 
 **Platform:** Node 20, Jest, React Testing Library
 
@@ -91,8 +91,8 @@
 |------|-------|--------|---------|--------|----------------|
 | Backend Integration | 15 | 14 | 1* | 0 | ≥80% code coverage |
 | Backend Accuracy | 3 | 0 | 3* | 0 | ≥80% detection accuracy |
-| Frontend Unit | 10 | 10 | 0 | 0 | ≥70% code coverage |
-| **Total** | **28** | **24** | **4** | **0** | — |
+| Frontend Unit | 11 | 11 | 0 | 0 | ≥70% code coverage |
+| **Total** | **29** | **25** | **4** | **0** | — |
 
 *Skipped = `@pytest.mark.skipif` — SAM model not present; passes locally when model is downloaded.
 
