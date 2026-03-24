@@ -1,3 +1,6 @@
+"""Integration tests for FastAPI endpoints."""
+from __future__ import annotations
+
 import io
 
 import cv2
@@ -17,10 +20,9 @@ def _make_test_image() -> bytes:
 
 
 def test_analyze_endpoint_returns_json():
-    image_bytes = _make_test_image()
     response = client.post(
         "/api/analyze",
-        files={"file": ("test.png", io.BytesIO(image_bytes), "image/png")},
+        files={"file": ("test.png", io.BytesIO(_make_test_image()), "image/png")},
     )
     assert response.status_code == 200
     data = response.json()
@@ -29,6 +31,10 @@ def test_analyze_endpoint_returns_json():
     assert "total_wires" in data
     assert "bounding_boxes" in data
     assert "annotated_image" in data
+    assert "processing_time_ms" in data
+    assert "segments_analyzed" in data
+    assert "avg_confidence" in data
+    assert "wire_coverage_pct" in data
 
 
 def test_analyze_rejects_non_image():
@@ -39,8 +45,21 @@ def test_analyze_rejects_non_image():
     assert response.status_code == 400
 
 
+def test_analyze_rejects_corrupt_image():
+    response = client.post(
+        "/api/analyze",
+        files={"file": ("bad.png", io.BytesIO(b"\x00\x01\x02corrupt"), "image/png")},
+    )
+    assert response.status_code == 400
+
+
 def test_colors_endpoint_returns_list():
     response = client.get("/api/colors")
     assert response.status_code == 200
     data = response.json()
     assert "colors" in data
+    assert len(data["colors"]) > 0
+    for item in data["colors"]:
+        assert "name" in item
+        assert "lower" in item
+        assert "upper" in item

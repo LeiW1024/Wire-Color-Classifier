@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { ImageUpload } from '@/components/ImageUpload'
 import { ResultsView } from '@/components/ResultsView'
 import { analyzeImage } from '@/lib/api'
@@ -8,13 +8,18 @@ import type { AnalyzeResponse } from '@/lib/types'
 
 export default function Home() {
   const [result, setResult] = useState<AnalyzeResponse | null>(null)
+  const [originalImage, setOriginalImage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleFileSelected(file: File) {
+  const handleFileSelected = useCallback(async (file: File) => {
     setIsLoading(true)
     setError(null)
     setResult(null)
+
+    // Create a local URL for the original image preview
+    const objUrl = URL.createObjectURL(file)
+    setOriginalImage(objUrl)
 
     try {
       const response = await analyzeImage(file)
@@ -24,24 +29,99 @@ export default function Home() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   return (
-    <main className="max-w-4xl mx-auto p-6 space-y-8">
-      <h1 className="text-3xl font-bold">Wire Color Classifier</h1>
-      <p className="text-gray-600">
-        Upload an image of colored wires to detect and count each color.
-      </p>
-
-      <ImageUpload onFileSelected={handleFileSelected} isLoading={isLoading} />
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-          {error}
+    <div style={{ position: 'relative', minHeight: '100vh', zIndex: 1 }}>
+      {/* Header */}
+      <header style={{
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--bg-surface)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+      }}>
+        <div style={{
+          maxWidth: 1100,
+          margin: '0 auto',
+          padding: '0 24px',
+          height: 52,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: isLoading ? '#f59e0b' : result ? 'var(--accent-cyan)' : '#2e3440',
+              boxShadow: isLoading ? '0 0 8px #f59e0b' : result ? '0 0 8px rgba(0,212,255,0.6)' : 'none',
+              transition: 'all 0.3s ease',
+            }} />
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 20,
+              color: 'var(--text-secondary)',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+            }}>
+              Wire Color Classifier
+            </span>
+          </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+            SAM · v2.0
+          </span>
         </div>
-      )}
+      </header>
 
-      {result && <ResultsView result={result} />}
-    </main>
+      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px', display: 'flex', flexDirection: 'column', gap: 32 }}>
+        {/* Title */}
+        <div style={{ borderLeft: '2px solid var(--accent-cyan)', paddingLeft: 20 }}>
+          <h1 style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'clamp(26px, 3vw, 36px)',
+            fontWeight: 400,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.2,
+          }}>
+            Industrial Wire<br />
+            <span style={{ color: 'var(--accent-cyan)' }}>Color Analysis</span>
+          </h1>
+          <p style={{
+            fontSize: 20,
+            color: 'var(--text-muted)',
+            marginTop: 8,
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.04em',
+          }}>
+            SAM segmentation → HSV color classification
+          </p>
+        </div>
+
+        {/* Upload */}
+        <ImageUpload onFileSelected={handleFileSelected} isLoading={isLoading} />
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            background: 'rgba(255,59,92,0.08)',
+            border: '1px solid rgba(255,59,92,0.3)',
+            borderRadius: 4,
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--accent-red)', letterSpacing: '0.1em' }}>ERR</span>
+            <span style={{ fontSize: 20, color: '#ff8fa3' }}>{error}</span>
+          </div>
+        )}
+
+        {/* Results */}
+        {result && originalImage && (
+          <ResultsView result={result} originalImageUrl={originalImage} />
+        )}
+      </main>
+    </div>
   )
 }
