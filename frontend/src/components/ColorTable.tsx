@@ -7,28 +7,32 @@ export function ColorTable({ wireCounts, totalWires }: ColorTableProps) {
   const entries = Object.entries(wireCounts)
 
   if (entries.length === 0) {
-    return <p className="text-gray-500 text-center py-4">No colors detected</p>
+    return (
+      <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>
+        No colors detected
+      </p>
+    )
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-4 py-2 text-left font-medium">Color</th>
-            <th className="px-4 py-2 text-right font-medium">Count</th>
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--border)' }}>
+            <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: 10 }}>Color</th>
+            <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: 10 }}>Count</th>
           </tr>
         </thead>
         <tbody>
           {entries.map(([color, count]) => (
-            <tr key={color} className="border-t border-gray-100">
-              <td className="px-4 py-2">{color}</td>
-              <td className="px-4 py-2 text-right">{count}</td>
+            <tr key={color} style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{color}</td>
+              <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-primary)' }}>{count}</td>
             </tr>
           ))}
-          <tr className="border-t-2 border-gray-300 font-bold">
-            <td className="px-4 py-2">Total</td>
-            <td className="px-4 py-2 text-right">{totalWires}</td>
+          <tr>
+            <td style={{ padding: '8px 12px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.1em' }}>Total</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--accent-cyan)', fontWeight: 500 }}>{totalWires}</td>
           </tr>
         </tbody>
       </table>

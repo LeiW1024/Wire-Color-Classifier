@@ -2,126 +2,115 @@
 
 **Date:** 2026-03-24
 **Branch:** develop
-**Total Tests:** 35 (25 backend + 10 frontend)
-**Status:** ALL PASSING
+**Pipeline:** SAM (Segment Anything Model) + HSV Classification
+**Total Tests:** 29 (18 backend + 11 frontend)
+**Status:** ALL PASSING (accuracy tests skipped — SAM model required locally)
 
 ---
 
-## Backend Test Results (25/25 PASSED)
+## Backend Test Results
 
-**Platform:** Python 3.9.6, pytest 8.4.2
-**Runtime:** 2.65s
+**Platform:** Python 3.9.6, pytest
+**Note:** Accuracy/regression tests require SAM model (`backend/models/sam_vit_b.pth`) — skipped in CI automatically via `@pytest.mark.skipif`.
 
-### Accuracy Regression Tests (2/2)
+### Accuracy Regression Tests — `tests/accuracy/test_regression.py`
 
-| Test | Status | Description |
-|------|--------|-------------|
-| `test_accuracy_above_80_percent` | PASSED | Verifies wire detection accuracy >= 80% on synthetic ground truth |
-| `test_no_phantom_colors_on_blank` | PASSED | Ensures no false colors detected on blank image |
+| Test | CI Status | Local Status | Description |
+|------|-----------|--------------|-------------|
+| `test_accuracy_above_80_percent` | SKIPPED (no model) | PASSED | SAM pipeline ≥80% on synthetic wire image |
+| `test_no_phantom_colors_on_blank` | SKIPPED (no model) | PASSED | No colors detected on plain gray image |
+| `test_response_metrics_are_valid` | SKIPPED (no model) | PASSED | avg_confidence ∈ [0,100], wire_coverage_pct ∈ [0,100] |
 
-### Integration Tests — API (3/3)
-
-| Test | Status | Description |
-|------|--------|-------------|
-| `test_analyze_endpoint_returns_json` | PASSED | POST /api/analyze returns correct JSON schema |
-| `test_analyze_rejects_non_image` | PASSED | POST /api/analyze returns 400 for non-image files |
-| `test_colors_endpoint_returns_list` | PASSED | GET /api/colors returns color list |
-
-### Integration Tests — Pipeline (3/3)
+### Integration Tests — API — `tests/integration/test_api.py`
 
 | Test | Status | Description |
 |------|--------|-------------|
-| `test_pipeline_returns_colors_and_counts` | PASSED | Full pipeline returns colors, counts, boxes, annotated image |
-| `test_pipeline_handles_blank_image` | PASSED | Pipeline returns zero results for blank image |
-| `test_pipeline_bounding_boxes_match_counts` | PASSED | Bounding box count matches wire count totals |
+| `test_analyze_endpoint_returns_json` | PASSED | POST /api/analyze returns all fields incl. metrics |
+| `test_analyze_rejects_non_image` | PASSED | Returns 400 for text/plain file |
+| `test_analyze_rejects_corrupt_image` | PASSED | Returns 400 for corrupt binary data |
+| `test_colors_endpoint_returns_list` | PASSED | GET /api/colors returns valid color definitions |
 
-### Unit Tests — Augmentation (4/4)
+### Integration Tests — SAM Pipeline — `tests/integration/test_sam_pipeline.py`
 
-| Test | Status | Description |
-|------|--------|-------------|
-| `test_augment_returns_valid_image` | PASSED | Augmented image has 3 channels, uint8 dtype |
-| `test_augment_preserves_dimensions` | PASSED | Output dimensions match input |
-| `test_augment_produces_different_image` | PASSED | Augmented image differs from original |
-| `test_augment_batch_produces_multiple` | PASSED | Batch generates correct number of variations |
-
-### Unit Tests — Color Discovery (3/3)
-
-| Test | Status | Description |
-|------|--------|-------------|
-| `test_discover_colors_finds_three_in_multicolor` | PASSED | K-means finds 3 colors in RGB test image |
-| `test_discover_colors_returns_requested_k` | PASSED | Returns exactly k color ranges |
-| `test_discover_colors_returns_valid_hsv_ranges` | PASSED | All ranges have valid HSV values (H: 0-179) |
-
-### Unit Tests — Color Segmentation (3/3)
-
-| Test | Status | Description |
-|------|--------|-------------|
-| `test_segment_red_from_multicolor_image` | PASSED | Isolates red region, excludes blue |
-| `test_segment_returns_empty_mask_for_absent_color` | PASSED | Returns empty mask for yellow (not in image) |
-| `test_segment_applies_morphological_cleanup` | PASSED | Morphological ops preserve thin wire in mask |
-
-### Unit Tests — Contour Detection (4/4)
-
-| Test | Status | Description |
-|------|--------|-------------|
-| `test_detect_contours_finds_rectangle` | PASSED | Detects filled rectangle, correct bounding box |
-| `test_detect_contours_filters_small_noise` | PASSED | Filters 4px noise, keeps large contour |
-| `test_detect_contours_returns_empty_on_blank` | PASSED | Returns empty list on blank mask |
-| `test_bounding_box_has_area` | PASSED | BoundingBox.area property computes correctly |
-
-### Unit Tests — Preprocessing (3/3)
-
-| Test | Status | Description |
-|------|--------|-------------|
-| `test_preprocess_returns_hsv_image` | PASSED | Output is HSV (hue max <= 179) |
-| `test_preprocess_resizes_large_image` | PASSED | 2000x3000 resized to max 800px dimension |
-| `test_preprocess_keeps_small_image_size` | PASSED | 200x200 image not resized |
+| Test | CI Status | Local Status | Description |
+|------|-----------|--------------|-------------|
+| `test_classify_color_red` | PASSED | PASSED | HSV hue ~5 → red |
+| `test_classify_color_blue` | PASSED | PASSED | HSV hue ~110 → blue |
+| `test_classify_color_green` | PASSED | PASSED | HSV hue ~60 → green |
+| `test_classify_color_yellow` | PASSED | PASSED | HSV hue ~30 → yellow |
+| `test_classify_color_returns_none_for_low_saturation` | PASSED | PASSED | Saturation=10 → None/neutral |
+| `test_is_wire_like_elongated` | PASSED | PASSED | 200×10 bbox → wire-like |
+| `test_is_wire_like_square_rejected` | PASSED | PASSED | 50×50 bbox → not wire-like |
+| `test_is_wire_like_zero_dimension_rejected` | PASSED | PASSED | 0×50 bbox → not wire-like |
+| `test_is_wire_like_too_large_rejected` | PASSED | PASSED | Area > 8% of image → background, rejected |
+| `test_is_wire_like_tiny_rejected` | PASSED | PASSED | Area < 150px → noise, rejected |
+| `test_sam_pipeline_returns_expected_schema` | SKIPPED (no model) | PASSED | All fields + metric ranges validated |
 
 ---
 
-## Frontend Test Results (10/10 PASSED)
+## Frontend Test Results (11/11 PASSED)
 
 **Platform:** Node 20, Jest, React Testing Library
-**Runtime:** 1.55s | **Test Suites:** 4/4 passed
 
-### API Client Tests (3/3)
+### API Client Tests — `__tests__/api/client.test.ts`
 
 | Test | Status | Description |
 |------|--------|-------------|
-| `analyzeImage sends file as FormData` | PASSED | Sends POST with FormData, parses response |
-| `analyzeImage throws on server error` | PASSED | Throws error on HTTP 500 |
+| `analyzeImage sends file as FormData` | PASSED | POST with multipart/form-data, parses response |
+| `analyzeImage throws on server error` | PASSED | Throws on HTTP 500 |
 | `getColors returns color list` | PASSED | Fetches and returns color list |
 
-### ImageUpload Component Tests (3/3)
+### ImageUpload Component — `__tests__/components/ImageUpload.test.tsx`
 
 | Test | Status | Description |
 |------|--------|-------------|
-| `renders upload area` | PASSED | Shows "upload" text |
+| `renders upload area` | PASSED | Drop zone renders |
 | `calls onFileSelected with valid image` | PASSED | Triggers callback on file selection |
-| `shows loading state when isLoading is true` | PASSED | Displays "processing" during load |
+| `shows loading state when isLoading is true` | PASSED | Shows "Analyzing..." during load |
 
-### ColorTable Component Tests (2/2)
+### ColorTable Component — `__tests__/components/ColorTable.test.tsx`
 
 | Test | Status | Description |
 |------|--------|-------------|
 | `renders all detected colors with counts` | PASSED | Shows color names, counts, and total |
-| `shows message when no colors detected` | PASSED | Displays "no colors detected" for empty |
+| `shows message when no colors detected` | PASSED | Shows empty state message |
 
-### ResultsView Component Tests (2/2)
+### ResultsView Component — `__tests__/components/ResultsView.test.tsx`
 
 | Test | Status | Description |
 |------|--------|-------------|
-| `renders annotated image` | PASSED | Renders img with base64 data URI src |
-| `renders color table` | PASSED | Shows color names and total wire count |
+| `renders annotated image` | PASSED | Renders `<img>` with base64 data URI src |
+| `renders color names` | PASSED | Shows "red" and "blue" in color distribution |
+| `renders total wire count` | PASSED | Shows total wire count (8) |
 
 ---
 
 ## Test Coverage Summary
 
-| Area | Tests | Passed | Failed | Coverage Target |
-|------|-------|--------|--------|----------------|
-| Backend Unit | 17 | 17 | 0 | 80% |
-| Backend Integration | 6 | 6 | 0 | — |
-| Backend Accuracy | 2 | 2 | 0 | >= 80% accuracy |
-| Frontend Unit | 10 | 10 | 0 | 70% |
-| **Total** | **35** | **35** | **0** | — |
+| Area | Tests | Passed | Skipped | Failed | Coverage Target |
+|------|-------|--------|---------|--------|----------------|
+| Backend Integration | 15 | 14 | 1* | 0 | ≥80% code coverage |
+| Backend Accuracy | 3 | 0 | 3* | 0 | ≥80% detection accuracy |
+| Frontend Unit | 11 | 11 | 0 | 0 | ≥70% code coverage |
+| **Total** | **29** | **25** | **4** | **0** | — |
+
+*Skipped = `@pytest.mark.skipif` — SAM model not present; passes locally when model is downloaded.
+
+---
+
+## What Changed vs Previous Report
+
+The previous report (2026-03-24, classical CV pipeline) had 35 tests covering:
+- `augmentation.py` (4 tests) — **removed**: SAM needs no augmentation
+- `color_discovery.py` (3 tests) — **removed**: SAM needs no K-means color discovery
+- `color_segmentation.py` (3 tests) — **removed**: replaced by HSV classification in sam_pipeline
+- `contour_detection.py` (4 tests) — **removed**: SAM generates masks directly
+- `preprocessing.py` (3 tests) — **removed**: resize logic moved into sam_pipeline
+- `test_pipeline.py` integration (3 tests) — **removed**: replaced by test_sam_pipeline
+
+New tests added:
+- `_is_wire_like` with `image_area` parameter (5 tests)
+- `_classify_color` expanded (4 tests)
+- Full schema + metric validation for `analyze_image_sam`
+- API tests check new fields: `avg_confidence`, `wire_coverage_pct`, `processing_time_ms`, `segments_analyzed`
+- `ResultsView` tests updated for new `originalImageUrl` prop

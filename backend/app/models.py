@@ -16,6 +16,10 @@ class AnalyzeResponse(BaseModel):
     total_wires: int
     bounding_boxes: list[BoundingBoxResponse]
     annotated_image: str  # base64 encoded
+    processing_time_ms: int = 0
+    segments_analyzed: int = 0
+    avg_confidence: float = 0.0
+    wire_coverage_pct: float = 0.0
 
 
 class ColorRangeResponse(BaseModel):
