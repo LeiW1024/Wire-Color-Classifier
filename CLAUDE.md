@@ -161,7 +161,7 @@ See `rules/workflow.md` for full detail on each step.
 | 1. **Start a branch** | Create a feature branch from `develop` — never work directly on `develop` or `main` |
 | 2. **TDD cycle** | Write a failing test first (RED), implement (GREEN), refactor (CLEAN) |
 | 3. **Commit** | Conventional commit messages, run full test suite before every commit |
-| 4. **Code review** | Self-review your diff, then request peer review on GitHub — address all comments before merging |
+| 4. **Code review** | Run `/code-review` skill (or `superpowers:requesting-code-review`) before opening a PR — address all findings before merging |
 | 5. **Open a PR** | Push branch, open PR to `develop`, squash merge, all CI checks must pass |
 | 6. **Branch flow** | `feature/*` → `develop` → `main` via PR only, never direct push |
 | 7. **CI/CD** | Lint + tests run automatically on every PR; deploy triggers on merge to `main` |

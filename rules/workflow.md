@@ -82,26 +82,42 @@ Run tests locally before every commit — CI will enforce this too.
 
 ## 4. Code Review
 
-Before opening a PR, review your own diff:
+Code review is performed using Claude Code skills and subagents — not manual-only review. Run at least one of the following before opening a PR.
 
-```bash
-git diff develop...HEAD
+### Primary: `/code-review` skill
+
+Invoked via the Claude Code skill system. Analyzes the diff against the base branch for bugs, logic errors, security issues, and coding standard violations.
+
+```
+/code-review
 ```
 
-**Self-review checklist:**
-- No debug code, print statements, or commented-out blocks left in
-- All new code has tests
-- No hardcoded secrets, credentials, or environment-specific values
-- Lint passes locally (`ruff check .` / `npx next lint`)
-- No unintended files staged (check `git status`)
+Checks performed:
+- SQL safety and injection risks
+- LLM trust boundary violations (if applicable)
+- Conditional side effects and edge cases
+- Adherence to `rules/coding-standards.md`
+- Test coverage gaps
 
-**Peer review:** Once the PR is open on GitHub, request a review. Reviewers check:
-- Logic correctness and edge cases
-- Test coverage adequacy
-- Adherence to coding standards (`rules/coding-standards.md`)
-- No security issues (SQL injection, XSS, exposed secrets)
+### Secondary: `superpowers:requesting-code-review`
 
-Address all review comments before merging. Do not merge a PR with unresolved comments.
+Use after completing a major feature or implementation step to verify work meets requirements before merging.
+
+```
+# In Claude Code — invoke via Skill tool
+superpowers:requesting-code-review
+```
+
+### Independent opinion: `feature-dev:code-reviewer` subagent
+
+For a fully independent review (no shared context with the current session), dispatch the `feature-dev:code-reviewer` subagent. It reads the codebase fresh and reports high-confidence issues only.
+
+### Rules
+
+- Run code review **before** pushing for PR — not after
+- Address all high-confidence findings before merging
+- Do not merge a PR with unresolved critical or security findings
+- Low-confidence findings may be deferred with a comment explaining why
 
 ---
 
@@ -195,8 +211,9 @@ pytest tests/integration/test_sam_pipeline.py::test_new_feature -v  # PASS ✓
 # 4. Run full suite (TDD CLEAN)
 pytest tests/ -v && cd ../frontend && npx jest
 
-# 5. Self-review diff
-git diff develop...HEAD
+# 5. Run code review skill (before opening PR)
+# In Claude Code: /code-review  or  superpowers:requesting-code-review
+# Address all findings
 
 # 6. Commit
 git add backend/app/sam_pipeline.py backend/tests/integration/test_sam_pipeline.py
