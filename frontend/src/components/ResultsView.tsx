@@ -83,7 +83,7 @@ export function ResultsView({ result, originalImageUrl }: ResultsViewProps) {
       <Divider label="Detection Results" />
 
       {/* ── TOP ROW: 5 metric cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+      <div className="metric-grid">
         <MetricCard value={String(result.total_wires)} label="Wire Segments" accent />
         <MetricCard value={String(colorsCount)} label="Colors Found" />
         <MetricCard value={`${confidence}%`} label="Avg Confidence" sub={confidenceLabel} warn={confidence < 70} />
@@ -92,7 +92,7 @@ export function ResultsView({ result, originalImageUrl }: ResultsViewProps) {
       </div>
 
       {/* ── MIDDLE ROW: image comparison (left) + color bars (right) ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
+      <div className="results-grid">
 
         {/* Image panel with tab switcher */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
@@ -106,6 +106,9 @@ export function ResultsView({ result, originalImageUrl }: ResultsViewProps) {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
+                aria-label={tab === 'detected' ? 'View SAM segmented image' : 'View original image'}
+                aria-selected={activeTab === tab}
+                role="tab"
                 style={{
                   flex: 1,
                   padding: '12px 16px',
@@ -137,7 +140,7 @@ export function ResultsView({ result, originalImageUrl }: ResultsViewProps) {
             />
             <div style={{
               position: 'absolute', top: 10, left: 10,
-              background: 'rgba(7,8,10,0.75)',
+              background: 'var(--bg-elevated)',
               border: '1px solid var(--border)',
               borderRadius: 3,
               padding: '3px 10px',
