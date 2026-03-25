@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { ImageUpload } from '@/components/ImageUpload'
 import { ResultsView } from '@/components/ResultsView'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { analyzeImage } from '@/lib/api'
 import type { AnalyzeResponse } from '@/lib/types'
 
@@ -67,9 +68,13 @@ export default function Home() {
               Wire Color Classifier
             </span>
           </div>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-            SAM · v2.0
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+              SAM · v2.0
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-muted)' }}>|</span>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

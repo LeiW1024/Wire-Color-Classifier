@@ -22,6 +22,22 @@
   --font-body: 'DM Sans', sans-serif;
 }
 
+[data-theme="light"] {
+  --bg-deep: #f8fafc;
+  --bg-surface: #f0f4f8;
+  --bg-elevated: #e8eef4;
+  --bg-hover: #dde5ef;
+  --border: #d0d8e4;
+  --border-bright: #b8c8d8;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --accent-cyan: #0099cc;
+  --accent-cyan-dim: rgba(0, 153, 204, 0.12);
+  --accent-red: #e8324a;
+  --scan-color: rgba(0, 153, 204, 0.05);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -89,6 +105,16 @@ body::before {
 
 .animate-count {
   animation: count-up 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Light mode body override */
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 153, 204, 0.06) 0%, transparent 60%);
+}
+
+[data-theme="light"] body::before {
+  opacity: 0.2;
 }
 
 /* Scrollbar */
