@@ -16,11 +16,11 @@ export function ColorTable({ wireCounts, totalWires }: ColorTableProps) {
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 14 }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border)' }}>
-            <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: 10 }}>Color</th>
-            <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: 10 }}>Count</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: 12 }}>Color</th>
+            <th style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: 12 }}>Count</th>
           </tr>
         </thead>
         <tbody>
@@ -31,7 +31,7 @@ export function ColorTable({ wireCounts, totalWires }: ColorTableProps) {
             </tr>
           ))}
           <tr>
-            <td style={{ padding: '8px 12px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.1em' }}>Total</td>
+            <td style={{ padding: '8px 12px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: 12, letterSpacing: '0.1em' }}>Total</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--accent-cyan)', fontWeight: 500 }}>{totalWires}</td>
           </tr>
         </tbody>

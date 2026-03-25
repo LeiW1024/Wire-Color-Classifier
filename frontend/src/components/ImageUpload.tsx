@@ -29,9 +29,26 @@ export function ImageUpload({ onFileSelected, isLoading = false }: ImageUploadPr
     [onFileSelected]
   )
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!isLoading && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault()
+        inputRef.current?.click()
+      }
+    },
+    [isLoading]
+  )
+
   return (
     <div
+      role="button"
+      tabIndex={isLoading ? -1 : 0}
+      aria-label={isLoading ? 'Analyzing image, please wait' : 'Upload wire image — click or drag and drop'}
+      aria-busy={isLoading}
+      data-loading={isLoading ? 'true' : undefined}
+      className="upload-zone"
       onClick={() => !isLoading && inputRef.current?.click()}
+      onKeyDown={handleKeyDown}
       onDrop={handleDrop}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
       onDragLeave={() => setIsDragging(false)}

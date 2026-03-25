@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
   --bg-deep: #07080a;
@@ -18,8 +18,8 @@
   --accent-cyan-dim: rgba(0, 212, 255, 0.12);
   --accent-red: #ff3b5c;
   --scan-color: rgba(0, 212, 255, 0.08);
-  --font-mono: 'Share Tech Mono', monospace;
-  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'Fira Code', monospace;
+  --font-body: 'Fira Sans', sans-serif;
 }
 
 [data-theme="light"] {
@@ -115,6 +115,78 @@ body::before {
 
 [data-theme="light"] body::before {
   opacity: 0.2;
+}
+
+/* Focus rings — visible for keyboard nav */
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Skip to main content — accessible keyboard shortcut */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  z-index: 9999;
+  background: var(--bg-surface);
+  color: var(--accent-cyan);
+  padding: 8px 16px;
+  border: 1px solid var(--accent-cyan);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+/* Hover state for upload zone */
+.upload-zone:hover:not([data-loading="true"]) {
+  background: var(--bg-hover) !important;
+  border-color: rgba(0, 212, 255, 0.35) !important;
+}
+
+/* Responsive: metric cards */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+/* Responsive: results layout */
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .metric-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .results-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Scrollbar */
